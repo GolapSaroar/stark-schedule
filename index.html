@@ -1,0 +1,1508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STARK HUD: Class Schedule System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&display=swap');
+
+        :root {
+            --glow-color: #00f0ff;
+            --danger-color: #ff0055;
+            --accent-gold: #ffc83b;
+        }
+
+        body {
+            font-family: 'Share Tech Mono', monospace;
+            background: #020205;
+            overflow: hidden;
+            height: 100vh;
+            color: #e2e8f0;
+        }
+
+        /* Workspace independent scroll fix */
+        #hud-workspace {
+            height: 100vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        
+        #hud-workspace::-webkit-scrollbar {
+            width: 6px;
+        }
+        #hud-workspace::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+        }
+        #hud-workspace::-webkit-scrollbar-thumb {
+            background: rgba(0, 240, 255, 0.2);
+            border-radius: 3px;
+        }
+        #hud-workspace::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 240, 255, 0.5);
+        }
+
+        .hud-font {
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        /* Sci-fi scanner beam effect */
+        .scanline {
+            width: 100%;
+            height: 100px;
+            background: linear-gradient(0deg, rgba(0, 240, 255, 0.08) 0%, rgba(0, 0, 0, 0) 100%);
+            position: absolute;
+            top: -100px;
+            left: 0;
+            z-index: 10;
+            pointer-events: none;
+            animation: scan 6s linear infinite;
+        }
+
+        @keyframes scan {
+            0% { top: -100px; }
+            100% { top: 100vh; }
+        }
+
+        /* Arc Reactor Standby Spinners */
+        .spinner-outer {
+            animation: spin-clockwise 10s linear infinite;
+        }
+        .spinner-inner {
+            animation: spin-counter 6s linear infinite;
+        }
+
+        @keyframes spin-clockwise {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes spin-counter {
+            from { transform: rotate(360deg); }
+            to { transform: rotate(0deg); }
+        }
+
+        /* Mechanical Iron Man Door Transitions */
+        .blast-door-top {
+            transition: transform 1.2s cubic-bezier(0.77, 0, 0.175, 1);
+        }
+        .blast-door-bottom {
+            transition: transform 1.2s cubic-bezier(0.77, 0, 0.175, 1);
+        }
+
+        .system-online .blast-door-top {
+            transform: translateY(-100%);
+        }
+        .system-online .blast-door-bottom {
+            transform: translateY(100%);
+        }
+
+        /* Neon glow effects */
+        .neon-glow-cyan {
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.4), inset 0 0 15px rgba(0, 240, 255, 0.2);
+            text-shadow: 0 0 8px rgba(0, 240, 255, 0.6);
+        }
+        .neon-glow-red {
+            box-shadow: 0 0 20px rgba(255, 0, 85, 0.5), inset 0 0 10px rgba(255, 0, 85, 0.2);
+        }
+        .neon-glow-gold {
+            box-shadow: 0 0 15px rgba(255, 200, 59, 0.4);
+            text-shadow: 0 0 8px rgba(255, 200, 59, 0.6);
+        }
+
+        /* Custom Scrollbar for schedule list */
+        .custom-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: rgba(0, 240, 255, 0.05);
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: rgba(0, 240, 255, 0.3);
+            border-radius: 2px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 240, 255, 0.6);
+        }
+
+        /* Tech grid lines overlay */
+        .grid-overlay {
+            background-size: 40px 40px;
+            background-image: 
+                linear-gradient(to right, rgba(0, 240, 255, 0.02) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(0, 240, 255, 0.02) 1px, transparent 1px);
+        }
+
+        /* Floating effect for Iron Man */
+        @keyframes ironman-float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-12px); }
+            100% { transform: translateY(0px); }
+        }
+
+        .ironman-hovering {
+            animation: ironman-float 3s ease-in-out infinite;
+        }
+
+        /* Screen shaking animation on launch ignition */
+        @keyframes screen-shake {
+            0%, 100% { transform: translate(0, 0); }
+            10% { transform: translate(-3px, 2px); }
+            30% { transform: translate(3px, -2px); }
+            50% { transform: translate(-2px, -3px); }
+            70% { transform: translate(2px, 3px); }
+            90% { transform: translate(-1px, 1px); }
+        }
+        .igniting {
+            animation: screen-shake 0.15s infinite;
+        }
+
+        /* Responsive Fix for Short Screens (Prevent Overlaps) */
+        @media (max-height: 750px) {
+            .blast-door-text { opacity: 0; pointer-events: none; }
+            #ironman-hull { transform: scale(0.85); margin-top: -10px !important; }
+            #reactor-trigger-container { transform: scale(0.9); margin-top: 5px !important; }
+        }
+    </style>
+</head>
+<body class="grid-overlay select-none">
+
+    <div class="scanline"></div>
+
+    <div id="system-toast" class="fixed top-6 right-6 z-[110] bg-slate-950/90 border border-cyan-400 text-cyan-400 px-4 py-3 rounded shadow-[0_0_15px_rgba(0,240,255,0.4)] hidden flex items-center gap-3 transition-all duration-300 transform translate-y-2">
+        <i data-lucide="info" class="w-5 h-5 text-cyan-400 animate-pulse"></i>
+        <span id="toast-message" class="text-xs uppercase font-mono tracking-wider"></span>
+    </div>
+
+    <div id="passcode-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] flex items-center justify-center hidden p-4">
+        <div class="bg-gradient-to-b from-[#11050a] to-[#040103] border-2 border-rose-500 p-6 rounded-lg max-w-sm w-full text-center neon-glow-red">
+            <div class="mb-4">
+                <i data-lucide="shield-alert" class="w-12 h-12 text-rose-500 animate-pulse mx-auto mb-2"></i>
+                <h3 class="hud-font text-lg text-rose-500 font-bold uppercase tracking-widest">ACCESS RESTRICTED</h3>
+                <p class="text-xs text-rose-400/80 mt-1 uppercase font-mono">STARK SECURITY SYSTEM OVERRIDE REQUIRED</p>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-[10px] uppercase tracking-widest mb-1 text-rose-400 font-mono">ENTER ENCRYPTION KEY</label>
+                    <input id="security-passcode-input" type="password" placeholder="••••••••" class="w-full bg-black border border-rose-500/40 rounded p-2 text-center text-rose-500 focus:outline-none focus:border-rose-500 text-lg font-mono">
+                </div>
+                <div id="passcode-error-msg" class="text-[10px] text-rose-500 font-bold uppercase hidden animate-pulse">INVALID ENCRYPTION KEY</div>
+                <div class="flex gap-2">
+                    <button onclick="closePasscodeModal()" class="w-1/2 py-2 border border-rose-500/30 hover:bg-rose-500/10 rounded uppercase text-[10px] font-bold text-rose-400">Abort</button>
+                    <button onclick="verifyAndExecute()" class="w-1/2 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded uppercase text-[10px] font-bold shadow-[0_0_15px_rgba(244,63,94,0.5)]">Authorize</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="boot-overlay" class="fixed inset-0 z-40 flex flex-col justify-between overflow-hidden transition-all duration-1000 bg-[#020308]">
+        
+        <div class="blast-door-top absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-[#0e1424] to-[#04060c] border-b-2 border-[#00f0ff]/50 flex flex-col justify-between p-6 overflow-hidden z-20">
+            <div class="w-full flex justify-between text-[10px] text-cyan-400/40 font-mono">
+                <span>STARK IND. CLASS ROUTINE SYSTEM // VER_9.1</span>
+                <span>SYSTEM STATUS: STANDBY</span>
+            </div>
+            <div class="w-full flex flex-col items-center pb-8 blast-door-text transition-opacity duration-300">
+                <div class="flex gap-2 mb-2">
+                    <i data-lucide="chevron-down" class="text-cyan-400 animate-pulse w-4 h-4"></i>
+                    <i data-lucide="chevron-down" class="text-cyan-400 animate-pulse w-4 h-4 delay-150"></i>
+                    <i data-lucide="chevron-down" class="text-cyan-400 animate-pulse w-4 h-4 delay-300"></i>
+                </div>
+                <h2 class="hud-font tracking-[0.4em] text-cyan-400 text-xs font-bold opacity-80 uppercase text-center">MARK LXXXV JET THRUST ASSEMBLY</h2>
+            </div>
+        </div>
+
+        <div class="absolute inset-0 flex flex-col items-center justify-center z-30 p-4 pointer-events-none">
+            
+            <div id="ironman-hull" class="relative w-[280px] h-[360px] ironman-hovering flex justify-center items-center mt-[-60px] transition-all duration-1000 ease-in pointer-events-auto">
+                <canvas id="booster-canvas" class="absolute inset-0 w-full h-full z-0 pointer-events-none"></canvas>
+
+                <svg viewBox="0 0 300 400" class="w-full h-full relative z-10 drop-shadow-[0_0_25px_rgba(255,0,0,0.3)]">
+                    <path d="M120,60 L180,60 L195,95 L175,135 L125,135 L105,95 Z" fill="#b91c1c" stroke="#1e293b" stroke-width="2" /> <path d="M128,70 L172,70 L182,95 L172,118 L128,118 L118,95 Z" fill="#fbbf24" /> <polygon points="132,88 146,88 144,93 134,93" fill="#ffffff" filter="drop-shadow(0 0 5px #00f0ff)" stroke="#00f0ff" stroke-width="1.5" />
+                    <polygon points="168,88 154,88 156,93 166,93" fill="#ffffff" filter="drop-shadow(0 0 5px #00f0ff)" stroke="#00f0ff" stroke-width="1.5" />
+                    <line x1="140" y1="106" x2="160" y2="106" stroke="#b91c1c" stroke-width="2" />
+
+                    <rect x="138" y="135" width="24" height="15" fill="#7f1d1d" />
+
+                    <path d="M100,150 L200,150 L215,220 L185,260 L115,260 L85,220 Z" fill="#b91c1c" stroke="#1e293b" stroke-width="2" /> <path d="M115,150 L185,150 L195,190 L170,225 L130,225 L105,190 Z" fill="#fbbf24" opacity="0.9" /> <polygon points="150,165 168,178 161,198 139,198 132,178" fill="#ffffff" stroke="#00f0ff" stroke-width="3.5" filter="drop-shadow(0 0 10px #00f0ff)" />
+
+                    <path d="M85,150 L60,175 L75,200 L95,180 Z" fill="#b91c1c" />
+                    <path d="M68,190 L50,250 L65,260 L80,210 Z" fill="#fbbf24" />
+                    <circle cx="58" cy="255" r="5" fill="#ffffff" stroke="#00f0ff" stroke-width="2" filter="drop-shadow(0 0 6px #00f0ff)" />
+
+                    <path d="M215,150 L240,175 L225,200 L205,180 Z" fill="#b91c1c" />
+                    <path d="M232,190 L250,250 L235,260 L220,210 Z" fill="#fbbf24" />
+                    <circle cx="242" cy="255" r="5" fill="#ffffff" stroke="#00f0ff" stroke-width="2" filter="drop-shadow(0 0 6px #00f0ff)" />
+
+                    <path d="M115,260 L185,260 L175,290 L125,290 Z" fill="#7f1d1d" />
+
+                    <path d="M120,290 L105,360 L125,370 L145,290 Z" fill="#b91c1c" stroke="#1e293b" />
+                    <path d="M110,340 L98,380 L115,385 L125,370 Z" fill="#fbbf24" /> <ellipse cx="106" cy="382" rx="6" ry="3" fill="#ffffff" stroke="#00f0ff" stroke-width="1.5" filter="drop-shadow(0 0 6px #00f0ff)" />
+
+                    <path d="M180,290 L195,360 L175,370 L155,290 Z" fill="#b91c1c" stroke="#1e293b" />
+                    <path d="M190,340 L202,380 L185,385 L175,370 Z" fill="#fbbf24" /> <ellipse cx="194" cy="382" rx="6" ry="3" fill="#ffffff" stroke="#00f0ff" stroke-width="1.5" filter="drop-shadow(0 0 6px #00f0ff)" />
+                </svg>
+            </div>
+
+            <div id="reactor-trigger-container" class="w-full max-w-sm flex flex-col items-center gap-4 mt-4 relative z-30 pointer-events-auto">
+                <button onclick="initiateLaunch()" class="relative w-28 h-28 flex items-center justify-center rounded-full group focus:outline-none hover:scale-105 transition-transform">
+                    <div class="spinner-outer absolute inset-0 rounded-full border border-dashed border-cyan-400/60 p-4"></div>
+                    <div class="spinner-inner absolute inset-2 rounded-full border border-double border-cyan-300/30"></div>
+                    <div class="absolute inset-4 rounded-full bg-cyan-950/40 group-hover:bg-cyan-950/60 border border-cyan-500/50 flex items-center justify-center neon-glow-cyan transition-all duration-300">
+                        <div class="w-16 h-16 rounded-full border-2 border-cyan-400 relative flex flex-col items-center justify-center">
+                            <span class="hud-font text-base font-black text-cyan-400 group-hover:scale-110 transition-transform duration-300">ACTIVATE</span>
+                        </div>
+                    </div>
+                </button>
+                
+                <div class="text-center w-full">
+                    <p id="boot-status" class="text-cyan-400 tracking-widest text-xs uppercase animate-pulse">Awaiting Manual Verification</p>
+                    <button onclick="toggleMute()" class="mt-2 text-[10px] text-cyan-500/60 hover:text-cyan-400 border border-cyan-500/30 px-3 py-1 rounded bg-black/40 hover:bg-cyan-950/20 transition-all">
+                        <span id="mute-label">MUTED (TAP TO ENABLE SYNTH AUDIO)</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="blast-door-bottom absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-[#0e1424] to-[#04060c] border-t-2 border-[#00f0ff]/50 flex flex-col justify-between p-6 overflow-hidden z-20">
+            <div class="w-full flex flex-col items-center pt-8 blast-door-text transition-opacity duration-300">
+                <h2 class="hud-font tracking-[0.4em] text-cyan-400 text-xs font-bold opacity-80 uppercase mb-2 text-center">SYSTEM CLASSIFIED // LEVEL 9 PRIVACY</h2>
+                <div class="flex gap-2">
+                    <i data-lucide="chevron-up" class="text-cyan-400 animate-pulse w-4 h-4"></i>
+                    <i data-lucide="chevron-up" class="text-cyan-400 animate-pulse w-4 h-4 delay-150"></i>
+                    <i data-lucide="chevron-up" class="text-cyan-400 animate-pulse w-4 h-4 delay-300"></i>
+                </div>
+            </div>
+            <div class="w-full flex justify-between text-[10px] text-cyan-400/40 font-mono">
+                <span>LOCATION: STARK TOWER LABS</span>
+                <span>REACTOR STRENGTH: OVERLOAD CAPABLE</span>
+            </div>
+        </div>
+    </div>
+
+
+    <div id="hud-workspace" class="hidden p-4 flex flex-col justify-between relative z-10 max-w-7xl mx-auto opacity-0 transition-opacity duration-1000">
+        
+        <header class="flex flex-col md:flex-row justify-between items-center border-b border-cyan-500/30 pb-3 gap-4">
+            <div class="flex items-center gap-4">
+                <div class="w-10 h-10 border border-cyan-400 flex items-center justify-center neon-glow-cyan bg-cyan-950/20">
+                    <i data-lucide="cpu" class="text-cyan-400 animate-pulse w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="hud-font text-xl md:text-2xl font-black text-cyan-400 tracking-widest uppercase flex items-center gap-2">
+                        JARVIS <span class="text-xs text-yellow-400 border border-yellow-400 px-1 py-0.5 rounded tracking-normal font-mono">v4.0</span>
+                    </h1>
+                    <p class="text-[10px] text-cyan-300/60 uppercase tracking-widest">TACTICAL CLASS SCHEDULE & CORE INTELLIGENCE</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-6 bg-slate-950/40 border border-cyan-500/20 px-4 py-2 rounded">
+                <div class="text-center">
+                    <div class="text-[9px] text-cyan-500/70 tracking-widest uppercase">System Chrono</div>
+                    <div id="hud-clock" class="hud-font text-lg text-cyan-400 font-bold tracking-widest">00:00:00</div>
+                </div>
+                <div class="h-6 w-[1px] bg-cyan-500/20"></div>
+                <div class="text-center">
+                    <div class="text-[9px] text-cyan-500/70 tracking-widest uppercase">Current Zone</div>
+                    <div id="hud-date" class="hud-font text-sm text-cyan-300 font-bold">19-JUN-2026</div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <div class="text-right">
+                    <div class="text-[9px] text-cyan-500/70 tracking-widest uppercase" id="architect-mode-label">REACTOR CORE</div>
+                    <div class="hud-font text-xs text-[#ffc83b] font-bold">98.4% OVERCHARGED</div>
+                </div>
+                <div class="w-16 bg-slate-900 border border-cyan-500/40 p-0.5 h-6 flex gap-0.5">
+                    <div class="bg-cyan-400 w-3 h-full"></div>
+                    <div class="bg-cyan-400 w-3 h-full"></div>
+                    <div class="bg-cyan-400 w-3 h-full"></div>
+                    <div class="bg-cyan-500 w-3 h-full"></div>
+                    <div id="shield-indicator-bar" class="bg-yellow-400 w-3 h-full animate-pulse"></div>
+                </div>
+                <button onclick="lockSystem()" class="p-2 border border-[#ff0055]/40 text-[#ff0055]/70 hover:text-white hover:bg-[#ff0055]/20 rounded transition-all" title="Secure Core System">
+                    <i data-lucide="power" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </header>
+
+        <main class="grid grid-cols-1 lg:grid-cols-12 gap-4 my-4 flex-1">
+            
+            <section class="lg:col-span-3 flex flex-col gap-4">
+                
+                <div class="border border-cyan-500/20 bg-slate-950/70 p-4 rounded backdrop-blur">
+                    <div class="flex items-center gap-2 mb-3 border-b border-cyan-500/20 pb-2">
+                        <i data-lucide="calendar" class="text-cyan-400 w-4 h-4"></i>
+                        <span class="hud-font text-xs font-bold text-cyan-300 uppercase tracking-widest">CHRONO SEGMENTS (SAT-WED)</span>
+                    </div>
+                    <div class="flex flex-col gap-2" id="day-selector-container">
+                        </div>
+                </div>
+
+                <div class="border border-cyan-500/20 bg-slate-950/70 p-4 rounded backdrop-blur flex-1 flex flex-col min-h-[150px]">
+                    <div class="flex items-center gap-2 mb-3 border-b border-cyan-500/20 pb-2">
+                        <i data-lucide="terminal" class="text-cyan-400 w-4 h-4"></i>
+                        <span class="hud-font text-xs font-bold text-cyan-300 uppercase tracking-widest">SYSTEM CONSOLE</span>
+                    </div>
+                    <div class="flex-1 overflow-y-auto text-[11px] text-cyan-400/80 space-y-1 custom-scroll pr-1 font-mono max-h-[180px]" id="system-log">
+                        <p class="text-cyan-300/50">> JARVIS OS loaded...</p>
+                        <p class="text-cyan-300/50">> Biometrics matched: Stark, T.</p>
+                        <p class="text-[#ffc83b]">> WARNING: Flight Thruster combustion levels nominal.</p>
+                        <p class="text-emerald-400">> Saturday-Wednesday routine loaded.</p>
+                    </div>
+                </div>
+
+                <div class="border border-cyan-500/25 bg-slate-950/85 p-3.5 rounded backdrop-blur flex flex-col gap-2.5 shadow-[0_0_15px_rgba(0,240,255,0.05)]">
+                    <div class="flex items-center justify-between border-b border-cyan-500/20 pb-2">
+                        <div class="flex items-center gap-2.5">
+                            <div class="relative w-6 h-6 flex items-center justify-center">
+                                <span class="absolute inline-flex h-full w-full rounded-full bg-cyan-400/10 animate-ping"></span>
+                                <i data-lucide="brain-circuit" class="text-cyan-400 w-3.5 h-3.5"></i>
+                            </div>
+                            <div>
+                                <p class="text-[10px] text-cyan-400/90 font-bold uppercase tracking-wider font-mono">J.A.R.V.I.S. Core Intel</p>
+                                <p id="jarvis-status" class="text-[8px] text-cyan-300/50 font-mono">STATUS: READY TO OPERATE</p>
+                            </div>
+                        </div>
+                        <select id="tts-voice-select" class="bg-black/60 border border-cyan-500/20 text-cyan-400 text-[8px] rounded px-1.5 py-0.5 focus:outline-none font-mono">
+                            <option value="Zephyr">Zephyr (Bright)</option>
+                            <option value="Puck">Puck (Upbeat)</option>
+                            <option value="Fenrir">Fenrir (Excitable)</option>
+                            <option value="Kore" selected>Kore (Firm)</option>
+                            <option value="Charon">Charon (Info)</option>
+                        </select>
+                    </div>
+
+                    <div class="flex flex-col gap-1.5 font-mono text-[10px]">
+                        <input id="ai-user-prompt" type="text" placeholder="Instruct J.A.R.V.I.S... (e.g. Schedule Lab on Sun)" class="w-full bg-black/80 border border-cyan-500/30 rounded px-2 py-1.5 text-cyan-200 placeholder-cyan-500/30 focus:outline-none focus:border-cyan-400">
+                        <div class="flex gap-1.5 justify-end">
+                            <button onclick="aiCoreConsultation('Analyze Routine Gaps')" class="px-1.5 py-0.5 bg-cyan-950/40 text-cyan-400 border border-cyan-500/20 hover:border-cyan-400 rounded text-[8px]">Analyze Gaps</button>
+                            <button onclick="aiCoreConsultation('Suggest dynamic optimizations')" class="px-1.5 py-0.5 bg-cyan-950/40 text-cyan-400 border border-cyan-500/20 hover:border-cyan-400 rounded text-[8px]">Optimize</button>
+                            <button onclick="executeJarvisTask()" id="ai-send-btn" class="px-3 py-0.5 bg-cyan-500 text-black font-bold uppercase rounded text-[9px] shadow-[0_0_8px_rgba(0,240,255,0.4)]">Send</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="lg:col-span-6 flex flex-col gap-4">
+                
+                <div class="border border-cyan-500/20 bg-slate-950/50 p-4 rounded backdrop-blur flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="h-2 w-2 rounded-full bg-cyan-400 animate-pulse"></span>
+                            <span id="current-day-badge" class="text-xs uppercase text-cyan-400 font-bold tracking-widest">Active Schedule Sector</span>
+                        </div>
+                        <h2 id="current-day-title" class="hud-font text-3xl font-black text-cyan-400 tracking-wider">SATURDAY</h2>
+                    </div>
+                    <div class="flex items-center gap-3 w-full md:w-auto">
+                        <button onclick="showAddClassModal()" class="w-full md:w-auto flex items-center justify-center gap-2 px-4 py-2 border border-cyan-400 bg-cyan-950/20 hover:bg-cyan-400 hover:text-black rounded transition-all text-xs font-bold uppercase tracking-wider text-cyan-400">
+                            <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                            Inject New Sector
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex-1 flex flex-col gap-3 overflow-y-auto custom-scroll pr-1 max-h-[460px]" id="class-cards-container">
+                    </div>
+            </section>
+
+            <section class="lg:col-span-3 flex flex-col gap-4">
+                
+                <div class="border border-cyan-500/20 bg-slate-950/70 p-4 rounded backdrop-blur text-center">
+                    <span class="hud-font text-xs font-bold text-cyan-300 uppercase tracking-widest block mb-2">CHRONOLOGICAL DUTY LOAD</span>
+                    <div class="relative w-28 h-28 mx-auto my-3 flex items-center justify-center">
+                        <svg class="w-full h-full transform -rotate-90">
+                            <circle cx="56" cy="56" r="48" stroke="rgba(0, 240, 255, 0.1)" stroke-width="4" fill="transparent" />
+                            <circle id="gauge-circle" cx="56" cy="56" r="48" stroke="#00f0ff" stroke-width="6" fill="transparent" 
+                                stroke-dasharray="301.6" stroke-dashoffset="150" class="transition-all duration-1000 ease-out" />
+                        </svg>
+                        <div class="absolute text-center">
+                            <span id="gauge-value" class="hud-font text-2xl font-black text-cyan-400">50%</span>
+                            <span class="text-[9px] block text-cyan-300/60 uppercase font-mono">COMPLETED</span>
+                        </div>
+                    </div>
+                    <p id="gauge-descriptor" class="text-[10px] text-cyan-400/80 mt-2 italic font-mono">Awaiting analysis...</p>
+                </div>
+
+                <div class="border border-[#ffc83b]/20 bg-slate-950/70 p-4 rounded backdrop-blur font-mono">
+                    <div class="flex items-center gap-2 mb-3 border-b border-[#ffc83b]/20 pb-2">
+                        <i data-lucide="compass" class="text-[#ffc83b] w-4 h-4"></i>
+                        <span class="hud-font text-xs font-bold text-[#ffc83b] uppercase tracking-widest">MARK LXXXV ENERGY</span>
+                    </div>
+                    <div class="space-y-3 text-xs">
+                        <div>
+                            <div class="flex justify-between text-[10px] text-cyan-300/60 mb-1">
+                                <span>FLIGHT FUEL RATION</span>
+                                <span class="text-cyan-400">92%</span>
+                            </div>
+                            <div class="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden border border-cyan-500/20">
+                                <div class="bg-cyan-400 h-full w-[92%]"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-[10px] text-cyan-300/60 mb-1">
+                                <span>NANO SUIT INTEGRITY</span>
+                                <span class="text-[#ffc83b]">100%</span>
+                            </div>
+                            <div class="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden border border-[#ffc83b]/20">
+                                <div class="bg-[#ffc83b] h-full w-[100%]"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-[10px] text-cyan-300/60 mb-1">
+                                <span>REPULSOR GENERATOR FLUX</span>
+                                <span class="text-emerald-400">STABLE</span>
+                            </div>
+                            <div class="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden border border-emerald-500/20">
+                                <div class="bg-emerald-400 h-full w-[100%]"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="border border-cyan-500/20 bg-slate-950/70 p-4 rounded backdrop-blur flex-1 flex flex-col min-h-[140px]">
+                    <div class="flex items-center justify-between mb-3 border-b border-cyan-500/20 pb-2">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="edit" class="text-cyan-400 w-4 h-4"></i>
+                            <span class="hud-font text-xs font-bold text-cyan-300 uppercase tracking-widest font-mono">DUTY REMINDERS</span>
+                        </div>
+                        <button onclick="clearAllNotes()" class="text-[9px] text-rose-500 hover:text-rose-400 uppercase font-mono font-bold">Clear</button>
+                    </div>
+                    <div class="flex-1 flex flex-col gap-2">
+                        <textarea id="notes-textarea" class="w-full flex-1 bg-slate-950/60 border border-cyan-500/20 rounded p-2 text-xs text-cyan-200 focus:outline-none focus:border-cyan-400/80 resize-none font-mono" placeholder="Inject notes, homework, or blueprints here..."></textarea>
+                    </div>
+                </div>
+
+            </section>
+        </main>
+
+        <footer class="border-t border-cyan-500/20 pt-3 mb-6 flex flex-col sm:flex-row justify-between items-center text-[10px] text-cyan-500/50 gap-2">
+            <span>STARK INDUSTRIES COMPUTER LINK — ALL ASSETS CLASSIFIED</span>
+            <div class="flex gap-4">
+                <span class="hover:text-cyan-400 cursor-pointer" onclick="resetDatabase()">RESTORE DEFAULT MATRIX</span>
+                <span>|</span>
+                <span class="hover:text-cyan-400 cursor-pointer">SECURE TRANSMISSION</span>
+            </div>
+            <span>DEVELOPED FOR STARK ENTERPRISE SPECIAL DIVISION © 2026</span>
+        </footer>
+    </div>
+
+
+    <div id="add-class-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-gradient-to-b from-[#0e1626] to-[#040812] border-2 border-cyan-400 p-6 rounded-lg max-w-md w-full neon-glow-cyan">
+            <div class="flex justify-between items-center border-b border-cyan-500/30 pb-3 mb-4">
+                <h3 class="hud-font text-lg text-cyan-400 font-bold uppercase tracking-wider flex items-center gap-2">
+                    <i data-lucide="plus-circle" class="w-5 h-5"></i> Inject Routine Payload
+                </h3>
+                <button onclick="closeAddClassModal()" class="text-cyan-400/60 hover:text-cyan-400 text-lg">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            
+            <form id="add-class-form" onsubmit="saveNewClass(event)" class="space-y-4 text-sm text-cyan-300 font-mono">
+                <div>
+                    <label class="block text-xs uppercase tracking-wider mb-1 text-cyan-400">Class Name / Activity *</label>
+                    <input id="input-classname" type="text" required placeholder="e.g. CSE 2103 (BA)" class="w-full bg-slate-950 border border-cyan-500/30 rounded p-2 focus:outline-none focus:border-cyan-400 text-white">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs uppercase tracking-wider mb-1 text-cyan-400">Start Time *</label>
+                        <input id="input-start" type="text" required placeholder="e.g. 10:50 AM or 14:30" class="w-full bg-slate-950 border border-cyan-500/30 rounded p-2 focus:outline-none focus:border-cyan-400 text-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs uppercase tracking-wider mb-1 text-cyan-400">End Time *</label>
+                        <input id="input-end" type="text" required placeholder="e.g. 11:40 AM or 16:00" class="w-full bg-slate-950 border border-cyan-500/30 rounded p-2 focus:outline-none focus:border-cyan-400 text-white">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs uppercase tracking-wider mb-1 text-cyan-400">Syllabus Coordinator / Teacher</label>
+                    <input id="input-teacher" type="text" placeholder="e.g. Dr. Banner, TKS, MSR" class="w-full bg-slate-950 border border-cyan-500/30 rounded p-2 focus:outline-none focus:border-cyan-400 text-white">
+                </div>
+                <div>
+                    <label class="block text-xs uppercase tracking-wider mb-1 text-cyan-400">Target Core Lab / Room</label>
+                    <input id="input-room" type="text" placeholder="e.g. Room 201" class="w-full bg-slate-950 border border-cyan-500/30 rounded p-2 focus:outline-none focus:border-cyan-400 text-white">
+                </div>
+                <div>
+                    <label class="block text-xs uppercase tracking-wider mb-1 text-cyan-400">Chrono Sector (Day) *</label>
+                    <select id="input-day" class="w-full bg-slate-950 border border-cyan-500/30 rounded p-2 focus:outline-none focus:border-cyan-400 text-white">
+                        <option value="Saturday">Saturday</option>
+                        <option value="Sunday">Sunday</option>
+                        <option value="Monday">Monday</option>
+                        <option value="Tuesday">Tuesday</option>
+                        <option value="Wednesday">Wednesday</option>
+                    </select>
+                </div>
+                
+                <div class="pt-4 flex gap-3">
+                    <button type="button" onclick="closeAddClassModal()" class="w-1/2 py-2 border border-cyan-500/40 hover:bg-cyan-500/10 rounded uppercase text-xs font-bold text-cyan-400">Cancel</button>
+                    <button type="submit" class="w-1/2 py-2 bg-cyan-500 hover:bg-cyan-400 text-black rounded uppercase text-xs font-bold">Inject Core</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Muted status
+        let isMuted = true;
+
+        // Default clean routine database matched directly to screenshots
+        const defaultScheduleDatabase = {
+            "Saturday": [
+                { id: "sat-1", name: "HUM 2113 (TKS)", start: "10:50", end: "11:40", teacher: "TKS", room: "Room 201" },
+                { id: "sat-2", name: "MATH 2113 (MSR)", start: "11:40", end: "12:30", teacher: "MSR", room: "Room 201" },
+                { id: "sat-3", name: "EEE 2151 (MMI)", start: "12:30", end: "13:20", teacher: "MMI", room: "Room 201" }
+            ],
+            "Sunday": [
+                { id: "sun-1", name: "CSE 2103 (BA)", start: "08:50", end: "09:40", teacher: "BA", room: "Room 203" },
+                { id: "sun-2", name: "CSE 2103 (BA)", start: "09:40", end: "10:30", teacher: "BA", room: "Room 203" },
+                { id: "sun-3", name: "HUM 2113 (TKS)", start: "10:50", end: "11:40", teacher: "TKS", room: "Room 103" },
+                { id: "sun-4", name: "EEE 2151 (MMI)", start: "11:40", end: "12:30", teacher: "MMI", room: "Room 103" },
+                { id: "sun-5", name: "CSE 2101 (UD)", start: "12:30", end: "13:20", teacher: "UD", room: "Room 103" },
+                { id: "sun-6", name: "CSE 2104 / CSE 2102 Lab (BA / UD)", start: "14:30", end: "16:00", teacher: "BA / UD", room: "HW Lab / PG Lab" }
+            ],
+            "Monday": [
+                { id: "mon-1", name: "CSE 2101 (UD)", start: "10:50", end: "11:40", teacher: "UD", room: "Room 201" },
+                { id: "mon-2", name: "HUM 2113 (NF1)", start: "11:40", end: "12:30", teacher: "NF1", room: "Room 201" },
+                { id: "mon-3", name: "MATH 2113 (MSR)", start: "12:30", end: "13:20", teacher: "MSR", room: "Room 201" },
+                { id: "mon-4", name: "CSE 2104 / CSE 2102 Lab (BA / UD)", start: "14:30", end: "16:00", teacher: "BA / UD", room: "HW Lab / SW Lab" }
+            ],
+            "Tuesday": [
+                { id: "tue-1", name: "MATH 2113 (AH)", start: "08:00", end: "08:50", teacher: "AH", room: "Room 104" },
+                { id: "tue-2", name: "EEE 2151 (MMI)", start: "08:50", end: "09:40", teacher: "MMI", room: "Room 104" },
+                { id: "tue-3", name: "CSE 2101 (UD)", start: "09:40", end: "10:30", teacher: "UD", room: "Room 104" },
+                { id: "tue-4", name: "CSE 2103 (BA)", start: "10:50", end: "11:40", teacher: "BA", room: "Room 104" }
+            ],
+            "Wednesday": [
+                { id: "wed-1", name: "EEE 2152 Lab (AM)", start: "10:50", end: "12:30", teacher: "AM", room: "Machine Lab (East)" }
+            ]
+        };
+
+        let scheduleDatabase = {};
+
+        // Initialize state variables
+        let selectedDay = "Saturday";
+        const logContainer = document.getElementById("system-log");
+        const STORAGE_KEY = "stark_routine_db_v2"; // Bypasses old cache
+
+        // Sync database from storage on immediate startup
+        if (localStorage.getItem(STORAGE_KEY)) {
+            scheduleDatabase = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        } else {
+            // Write defaults to storage so they persist on edits
+            scheduleDatabase = JSON.parse(JSON.stringify(defaultScheduleDatabase));
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(scheduleDatabase));
+        }
+
+        // Setup reminders persistence
+        const notesArea = document.getElementById("notes-textarea");
+        if (localStorage.getItem("stark_routine_notes")) {
+            notesArea.value = localStorage.getItem("stark_routine_notes");
+        }
+        notesArea.addEventListener("input", () => {
+            localStorage.setItem("stark_routine_notes", notesArea.value);
+        });
+
+        // Initialize Audio Node components
+        let audioCtx;
+        function getAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            return audioCtx;
+        }
+
+        function playSciFiSound(type) {
+            if (isMuted) return;
+            try {
+                const ctx = getAudioContext();
+                if (ctx.state === 'suspended') {
+                    ctx.resume();
+                }
+
+                if (type === 'click') {
+                    let osc = ctx.createOscillator();
+                    let gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(1500, ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.15);
+                    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.15);
+                } 
+                else if (type === 'launch') {
+                    let osc1 = ctx.createOscillator();
+                    let osc2 = ctx.createOscillator();
+                    let gain = ctx.createGain();
+                    
+                    osc1.type = 'sawtooth';
+                    osc1.frequency.setValueAtTime(70, ctx.currentTime);
+                    osc1.frequency.exponentialRampToValueAtTime(1500, ctx.currentTime + 1.4);
+                    
+                    osc2.type = 'triangle';
+                    osc2.frequency.setValueAtTime(35, ctx.currentTime);
+                    osc2.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 1.4);
+
+                    gain.gain.setValueAtTime(0.5, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.7);
+
+                    osc1.connect(gain);
+                    osc2.connect(gain);
+                    gain.connect(ctx.destination);
+
+                    osc1.start();
+                    osc2.start();
+                    osc1.stop(ctx.currentTime + 1.7);
+                    osc2.stop(ctx.currentTime + 1.7);
+                }
+                else if (type === 'hud-on') {
+                    let osc = ctx.createOscillator();
+                    let gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(600, ctx.currentTime);
+                    osc.frequency.setValueAtTime(900, ctx.currentTime + 0.1);
+                    osc.frequency.setValueAtTime(1300, ctx.currentTime + 0.2);
+                    gain.gain.setValueAtTime(0.2, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.5);
+                }
+            } catch (e) {
+                console.log("Audio play blocked", e);
+            }
+        }
+
+        function toggleMute() {
+            isMuted = !isMuted;
+            document.getElementById("mute-label").innerText = isMuted ? "MUTED (TAP TO ENABLE SYNTH SOUND)" : "AUDIO UNMUTED";
+            playSciFiSound('click');
+        }
+
+        const canvas = document.getElementById("booster-canvas");
+        const ctx = canvas.getContext("2d");
+        let particles = [];
+        let launchActive = false;
+
+        function resizeCanvas() {
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+        }
+        window.addEventListener("resize", resizeCanvas);
+        resizeCanvas();
+
+        class BoosterParticle {
+            constructor(x, y, vx, vy, isHand = false) {
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy;
+                this.alpha = 1.0;
+                this.life = Math.random() * 20 + 10;
+                this.maxLife = this.life;
+                this.size = Math.random() * (isHand ? 2 : 4) + 2;
+                this.isHand = isHand;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life--;
+                this.alpha = this.life / this.maxLife;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.beginPath();
+                let grad = ctx.createRadialGradient(this.x, this.y, 1, this.x, this.y, this.size);
+                if (launchActive) {
+                    grad.addColorStop(0, '#ffffff');
+                    grad.addColorStop(0.3, '#ff9f1c');
+                    grad.addColorStop(0.8, '#e71d36');
+                    grad.addColorStop(1, 'rgba(231, 29, 54, 0)');
+                } else {
+                    grad.addColorStop(0, '#ffffff');
+                    grad.addColorStop(0.4, '#00f0ff');
+                    grad.addColorStop(1, 'rgba(0, 240, 255, 0)');
+                }
+                ctx.fillStyle = grad;
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        function createBoosters() {
+            const lh_x = 58, lh_y = 230;
+            const rh_x = 222, rh_y = 230;
+            const lf_x = 98, lf_y = 350;
+            const rf_x = 182, rf_y = 350;
+
+            const rate = launchActive ? 8 : 2;
+
+            for (let i = 0; i < rate; i++) {
+                particles.push(new BoosterParticle(
+                    lh_x + (Math.random() - 0.5) * 6, lh_y,
+                    (Math.random() - 0.5) * (launchActive ? 6 : 1),
+                    Math.random() * (launchActive ? 12 : 3) + (launchActive ? 4 : 1), true
+                ));
+                particles.push(new BoosterParticle(
+                    rh_x + (Math.random() - 0.5) * 6, rh_y,
+                    (Math.random() - 0.5) * (launchActive ? 6 : 1),
+                    Math.random() * (launchActive ? 12 : 3) + (launchActive ? 4 : 1), true
+                ));
+                particles.push(new BoosterParticle(
+                    lf_x + (Math.random() - 0.5) * 10, lf_y,
+                    (Math.random() - 0.5) * (launchActive ? 8 : 1.5),
+                    Math.random() * (launchActive ? 22 : 6) + (launchActive ? 12 : 2)
+                ));
+                particles.push(new BoosterParticle(
+                    rf_x + (Math.random() - 0.5) * 10, rf_y,
+                    (Math.random() - 0.5) * (launchActive ? 8 : 1.5),
+                    Math.random() * (launchActive ? 22 : 6) + (launchActive ? 12 : 2)
+                ));
+            }
+        }
+
+        function animateCombustion() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            createBoosters();
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update();
+                if (particles[i].life <= 0) particles.splice(i, 1);
+                else particles[i].draw();
+            }
+            requestAnimationFrame(animateCombustion);
+        }
+
+        window.onload = function() {
+            lucide.createIcons();
+            animateCombustion();
+            updateClock();
+            setInterval(updateClock, 1000);
+            
+            // Check session status of passcode override lock
+            if(sessionStorage.getItem("stark_authorized") === "true") {
+                document.getElementById("architect-mode-label").innerText = "ARCHITECT ACTIVE";
+                document.getElementById("architect-mode-label").className = "text-[9px] text-green-400 font-bold tracking-widest uppercase";
+                document.getElementById("shield-indicator-bar").className = "bg-green-400 w-3 h-full animate-pulse";
+            }
+        }
+
+        function initiateLaunch() {
+            if (launchActive) return;
+            launchActive = true;
+            playSciFiSound('launch');
+
+            const status = document.getElementById("boot-status");
+            const overlay = document.getElementById("boot-overlay");
+            const mainApp = document.getElementById("hud-workspace");
+            const ironman = document.getElementById("ironman-hull");
+
+            status.innerHTML = "<span class='text-[#ffc83b] animate-pulse'>SUIT PRESSURIZATION ACTIVE...</span>";
+            document.body.classList.add("igniting");
+
+            setTimeout(() => {
+                status.innerHTML = "<span class='text-red-500 font-bold'>THRUST MAX CAP_85%</span>";
+            }, 600);
+
+            setTimeout(() => {
+                status.innerHTML = "<span class='text-cyan-400 font-bold'>LAUNCH!!!</span>";
+                ironman.classList.remove("ironman-hovering");
+                ironman.style.transform = "translateY(-1200px) scale(0.6)";
+                ironman.style.opacity = "0";
+            }, 1200);
+
+            setTimeout(() => {
+                document.body.classList.remove("igniting");
+                overlay.classList.add("system-online");
+                playSciFiSound('hud-on');
+                
+                mainApp.classList.remove("hidden");
+                setTimeout(() => mainApp.classList.add("opacity-100"), 50);
+
+                logSystemAction("STARK INTERFACE: SECURE LINK ACTIVATED");
+                logSystemAction("SATURDAY-WEDNESDAY CLASS DIARY SYNCED");
+                logSystemAction("BIOMETRIC CAPTURE SUCCESSFUL");
+                
+                buildDaysSelector();
+                renderScheduleList();
+            }, 2100);
+
+            setTimeout(() => overlay.classList.add("hidden"), 3500);
+        }
+
+        function lockSystem() {
+            playSciFiSound('click');
+            const overlay = document.getElementById("boot-overlay");
+            const status = document.getElementById("boot-status");
+            const mainApp = document.getElementById("hud-workspace");
+            const ironman = document.getElementById("ironman-hull");
+
+            launchActive = false;
+            
+            // Fade out workspace view first
+            mainApp.classList.remove("opacity-100");
+            
+            setTimeout(() => {
+                mainApp.classList.add("hidden");
+                
+                // Bring overlay back into viewport
+                overlay.classList.remove("hidden");
+                
+                // Force a minimal execution step before closing blast doors to ensure clean structural rendering
+                setTimeout(() => {
+                    overlay.classList.remove("system-online");
+                    
+                    // Restore Iron Man vector presence & hover animation
+                    ironman.classList.add("ironman-hovering");
+                    ironman.style.transform = "translateY(0px) scale(1)";
+                    ironman.style.opacity = "1";
+                    
+                    status.innerHTML = "Awaiting Manual Verification";
+                }, 50);
+            }, 500);
+        }
+
+        function logSystemAction(message) {
+            const time = new Date().toTimeString().split(' ')[0];
+            const p = document.createElement("p");
+            p.className = "hover:text-[#00f0ff] transition-colors";
+            p.innerHTML = `<span class="text-cyan-500/50">[${time}]</span> > ${message}`;
+            logContainer.prepend(p);
+        }
+
+        function updateClock() {
+            const now = new Date();
+            const timeStr = now.toTimeString().split(' ')[0];
+            document.getElementById("hud-clock").innerText = timeStr;
+
+            const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+            const dateStr = `${String(now.getDate()).padStart(2, '0')}-${months[now.getMonth()]}-${now.getFullYear()}`;
+            document.getElementById("hud-date").innerText = dateStr;
+        }
+
+        // Custom time formatting with bulletproof 12-hour support
+        function formatTime(time24) {
+            if (!time24) return "";
+            const [hours, minutes] = time24.split(":");
+            let hrs = parseInt(hours, 10);
+            const ampm = hrs >= 12 ? "PM" : "AM";
+            hrs = hrs % 12;
+            hrs = hrs ? hrs : 12; 
+            return `${hrs}:${minutes.padStart(2, '0')} ${ampm}`;
+        }
+
+        let pendingAction = null;
+
+        function verifyAndExecute() {
+            const code = document.getElementById("security-passcode-input").value;
+            if (code === "Bug@404") {
+                sessionStorage.setItem("stark_authorized", "true");
+                document.getElementById("passcode-error-msg").classList.add("hidden");
+                document.getElementById("passcode-modal").classList.add("hidden");
+                
+                // Adjust header details to reflect unlocked state
+                document.getElementById("architect-mode-label").innerText = "ARCHITECT ACTIVE";
+                document.getElementById("architect-mode-label").className = "text-[9px] text-green-400 font-bold tracking-widest uppercase";
+                document.getElementById("shield-indicator-bar").className = "bg-green-400 w-3 h-full animate-pulse";
+                
+                logSystemAction("SECURITY CLEARANCE GRANTED: MASTER SYSTEM UNLOCKED");
+                showToast("Access Granted. Command Sector Active.");
+
+                if (pendingAction) {
+                    pendingAction();
+                    pendingAction = null;
+                }
+            } else {
+                playSciFiSound('click');
+                document.getElementById("passcode-error-msg").classList.remove("hidden");
+                logSystemAction("WARNING: AUTHORIZATION REJECTED - SECURE LOG EXECUTED");
+            }
+        }
+
+        function closePasscodeModal() {
+            document.getElementById("passcode-modal").classList.add("hidden");
+            pendingAction = null;
+        }
+
+        function executeWithAuth(callbackAction) {
+            if (sessionStorage.getItem("stark_authorized") === "true") {
+                callbackAction();
+            } else {
+                pendingAction = callbackAction;
+                document.getElementById("security-passcode-input").value = "";
+                document.getElementById("passcode-error-msg").classList.add("hidden");
+                document.getElementById("passcode-modal").classList.remove("hidden");
+                playSciFiSound('click');
+            }
+        }
+
+        function showToast(msg, isError = false) {
+            const toast = document.getElementById("system-toast");
+            const msgEl = document.getElementById("toast-message");
+            msgEl.innerText = msg;
+            if (isError) {
+                toast.className = "fixed top-6 right-6 z-[110] bg-slate-950/95 border border-red-500 text-rose-500 px-4 py-3 rounded shadow-[0_0_15px_rgba(239,68,68,0.4)] flex items-center gap-3 transition-all duration-300";
+            } else {
+                toast.className = "fixed top-6 right-6 z-[110] bg-slate-950/95 border border-cyan-400 text-cyan-400 px-4 py-3 rounded shadow-[0_0_15px_rgba(0,240,255,0.4)] flex items-center gap-3 transition-all duration-300";
+            }
+            toast.classList.remove("hidden");
+            setTimeout(() => {
+                toast.classList.add("hidden");
+            }, 4000);
+        }
+
+        function parseTimeTo24(timeStr) {
+            if (!timeStr) return null;
+            timeStr = timeStr.trim().toUpperCase();
+            
+            // Matches formats like "10:50 AM", "02:30 PM", or "10:50AM", or standard 24hr "13:45"
+            const ampmRegex = /^(\d{1,2}):(\d{2})\s*(AM|PM)?$/;
+            const match = timeStr.match(ampmRegex);
+            if (match) {
+                let hours = parseInt(match[1], 10);
+                const minutes = parseInt(match[2], 10);
+                const ampm = match[3];
+
+                if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
+
+                if (ampm) {
+                    if (hours < 1 || hours > 12) return null;
+                    if (ampm === "PM" && hours < 12) hours += 12;
+                    if (ampm === "AM" && hours === 12) hours = 0;
+                }
+                return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+            }
+            return null;
+        }
+
+        const days = ["Saturday", "Sunday", "Monday", "Tuesday", "Wednesday"];
+        
+        function buildDaysSelector() {
+            const container = document.getElementById("day-selector-container");
+            container.innerHTML = "";
+            
+            days.forEach(day => {
+                const isActive = day === selectedDay;
+                const activeClasses = isActive 
+                    ? "bg-cyan-500/20 border-cyan-400 text-cyan-200 neon-glow-cyan" 
+                    : "border-cyan-500/10 hover:bg-cyan-950/20 text-cyan-400/70";
+                
+                const count = scheduleDatabase[day] ? scheduleDatabase[day].length : 0;
+
+                const btn = document.createElement("button");
+                btn.className = `w-full text-left p-2.5 rounded border ${activeClasses} transition-all duration-300 flex justify-between items-center text-xs tracking-wider uppercase font-mono`;
+                btn.onclick = () => {
+                    playSciFiSound('click');
+                    selectedDay = day;
+                    logSystemAction(`SWAPPED TIME SEGMENT ZONE TO: ${day.toUpperCase()}`);
+                    buildDaysSelector();
+                    renderScheduleList();
+                };
+
+                btn.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <span class="w-1.5 h-1.5 rounded-full ${isActive ? 'bg-cyan-400 animate-ping' : 'bg-transparent'}"></span>
+                        <span>${day}</span>
+                    </div>
+                    <span class="text-[9px] bg-cyan-950 px-1.5 py-0.5 rounded border border-cyan-400/20 font-bold">${count} SECTORS</span>
+                `;
+                container.appendChild(btn);
+            });
+        }
+
+        function renderScheduleList() {
+            const container = document.getElementById("class-cards-container");
+            const dayTitle = document.getElementById("current-day-title");
+            
+            dayTitle.innerText = selectedDay.toUpperCase();
+            container.innerHTML = "";
+
+            const items = scheduleDatabase[selectedDay] || [];
+            
+            if (items.length === 0) {
+                container.innerHTML = `
+                    <div class="border border-dashed border-cyan-500/20 rounded p-12 text-center text-cyan-400/50 text-xs font-mono">
+                        <i data-lucide="shield-alert" class="mx-auto w-10 h-10 text-cyan-400/30 mb-3 animate-pulse"></i>
+                        NO CLASS PAYLOAD DETECTED IN THIS GRID SECTOR
+                    </div>
+                `;
+                lucide.createIcons();
+                updateCompletionGauge();
+                return;
+            }
+
+            const sortedItems = [...items].sort((a,b) => a.start.localeCompare(b.start));
+
+            sortedItems.forEach(item => {
+                const card = document.createElement("div");
+                card.className = "border border-cyan-500/30 bg-slate-950/80 rounded p-4 relative group hover:border-cyan-400 transition-all duration-300 backdrop-blur";
+                
+                card.innerHTML = `
+                    <div class="absolute -left-[1px] top-0 bottom-0 w-1 bg-cyan-400 group-hover:bg-[#ffc83b]"></div>
+                    
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+                        <div class="space-y-1">
+                            <span class="text-[9px] text-yellow-400 font-bold tracking-widest uppercase border border-yellow-400/30 px-1.5 py-0.5 bg-yellow-950/20">Active Sector</span>
+                            <h3 class="hud-font text-base font-bold text-white tracking-wide group-hover:text-cyan-400 transition-colors">${item.name}</h3>
+                            <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-cyan-300/60 font-mono">
+                                <span class="flex items-center gap-1"><i data-lucide="user" class="w-3.5 h-3.5 text-cyan-400"></i> ${item.teacher || 'Unassigned'}</span>
+                                <span class="flex items-center gap-1"><i data-lucide="map-pin" class="w-3.5 h-3.5 text-cyan-400"></i> ${item.room || 'Remote Network'}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="flex md:flex-col items-end justify-between w-full md:w-auto border-t border-cyan-500/10 md:border-t-0 pt-2 md:pt-0">
+                            <div class="text-right">
+                                <span class="text-[9px] block text-cyan-300/40 uppercase font-mono">CHRONOLOGICAL RANGE</span>
+                                <span class="hud-font text-xs font-bold text-cyan-300">${formatTime(item.start)} - ${formatTime(item.end)}</span>
+                            </div>
+                            <button onclick="deleteClassPayload('${item.id}')" class="md:mt-2 text-rose-500 hover:text-white hover:bg-rose-950 p-1 rounded border border-rose-500/20 transition-all" title="Purge Core Data">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            lucide.createIcons();
+            updateCompletionGauge();
+        }
+
+        function deleteClassPayload(id) {
+            executeWithAuth(() => {
+                playSciFiSound('click');
+                for (const d of days) {
+                    if (scheduleDatabase[d]) {
+                        const prevLength = scheduleDatabase[d].length;
+                        scheduleDatabase[d] = scheduleDatabase[d].filter(item => item.id !== id);
+                        if (scheduleDatabase[d].length < prevLength) {
+                            logSystemAction(`PURGED CLASS SECTOR PAYLOAD DATA: ${id}`);
+                            saveDatabase();
+                            buildDaysSelector();
+                            renderScheduleList();
+                            showToast("Payload Purged.");
+                            break;
+                        }
+                    }
+                }
+            });
+        }
+
+        function showAddClassModal() {
+            playSciFiSound('click');
+            document.getElementById("input-day").value = selectedDay;
+            document.getElementById("add-class-modal").classList.remove("hidden");
+        }
+        
+        function closeAddClassModal() {
+            playSciFiSound('click');
+            document.getElementById("add-class-modal").classList.add("hidden");
+        }
+
+        function saveNewClass(e) {
+            e.preventDefault();
+
+            const name = document.getElementById("input-classname").value;
+            const rawStart = document.getElementById("input-start").value;
+            const rawEnd = document.getElementById("input-end").value;
+            const teacher = document.getElementById("input-teacher").value;
+            const room = document.getElementById("input-room").value;
+            const day = document.getElementById("input-day").value;
+
+            const parsedStart = parseTimeTo24(rawStart);
+            const parsedEnd = parseTimeTo24(rawEnd);
+
+            if (!parsedStart || !parsedEnd) {
+                playSciFiSound('click');
+                showToast("INVALID CHRONO FORMAT. USE '10:50 AM' OR '13:00'.", true);
+                return;
+            }
+
+            executeWithAuth(() => {
+                playSciFiSound('launch');
+                const newPayload = { 
+                    id: crypto.randomUUID(), 
+                    name: name, 
+                    start: parsedStart, 
+                    end: parsedEnd, 
+                    teacher: teacher, 
+                    room: room 
+                };
+
+                if (!scheduleDatabase[day]) scheduleDatabase[day] = [];
+                scheduleDatabase[day].push(newPayload);
+                
+                logSystemAction(`INJECTED TARGET Core: "${name.toUpperCase()}" into ${day.toUpperCase()}`);
+                saveDatabase();
+                
+                selectedDay = day;
+                buildDaysSelector();
+                renderScheduleList();
+                
+                document.getElementById("add-class-form").reset();
+                closeAddClassModal();
+                showToast("Payload Directives Synced.");
+            });
+        }
+
+        function saveDatabase() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(scheduleDatabase));
+        }
+
+        function resetDatabase() {
+            executeWithAuth(() => {
+                playSciFiSound('launch');
+                scheduleDatabase = JSON.parse(JSON.stringify(defaultScheduleDatabase));
+                saveDatabase();
+                buildDaysSelector();
+                renderScheduleList();
+                logSystemAction("SYSTEM RESTORED TO FACTORY SCHEDULE MATRIX.");
+                showToast("Matrix Restored.");
+            });
+        }
+
+        function clearAllNotes() {
+            playSciFiSound('click');
+            notesArea.value = "";
+            localStorage.removeItem("stark_routine_notes");
+            logSystemAction("CLEARED REMINDERS BUFFER");
+            showToast("Cache Cleared.");
+        }
+
+        
+        // Convert Signed PCM16 Audio buffer arrays into playable WAV files
+        function pcmToWav(pcmData, sampleRate) {
+            const buffer = new ArrayBuffer(44 + pcmData.length * 2);
+            const view = new DataView(buffer);
+            
+            // "RIFF"
+            view.setUint32(0, 0x52494646, false);
+            // File length
+            view.setUint32(4, 36 + pcmData.length * 2, true);
+            // "WAVE"
+            view.setUint32(8, 0x57415645, false);
+            // "fmt " chunk
+            view.setUint32(12, 0x666d7420, false);
+            // Chunk length
+            view.setUint32(16, 16, true);
+            // Sample format (raw signed PCM = 1)
+            view.setUint16(20, 1, true);
+            // Channel count = 1
+            view.setUint16(22, 1, true);
+            // Sample rate
+            view.setUint32(24, sampleRate, true);
+            // Byte rate (sample rate * block align)
+            view.setUint32(28, sampleRate * 2, true);
+            // Block align
+            view.setUint16(32, 2, true);
+            // Bits per sample = 16
+            view.setUint16(34, 16, true);
+            // "data" chunk
+            view.setUint32(36, 0x64617461, false);
+            // Chunk length
+            view.setUint32(40, pcmData.length * 2, true);
+            
+            // Populate actual audio PCM bytes
+            for (let i = 0; i < pcmData.length; i++) {
+                view.setInt16(44 + i * 2, pcmData[i], true);
+            }
+            
+            return new Blob([buffer], { type: 'audio/wav' });
+        }
+
+        // Convert base64 string to ArrayBuffer safely
+        function base64ToArrayBuffer(base64) {
+            const binaryString = atob(base64);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+
+        // Premium Speech synthesis utilizing the Gemini TTS engine
+        async function playGeminiTTS(textToSpeak) {
+            if (isMuted) return;
+            const statusIndicator = document.getElementById("jarvis-status");
+            const originalStatusText = statusIndicator.innerText;
+            statusIndicator.innerText = "SYNTHESIZING SPEECH CHIME...";
+
+            try {
+                const voiceName = document.getElementById("tts-voice-select").value || "Kore";
+                const apiKey = ""; // Left empty as required to auto-inject in runtime environment
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
+
+                const payload = {
+                    contents: [{
+                        parts: [{ text: `Say in a calm, British Stark assistant tone: ${textToSpeak}` }]
+                    }],
+                    generationConfig: {
+                        responseModalities: ["AUDIO"],
+                        speechConfig: {
+                            voiceConfig: {
+                                prebuiltVoiceConfig: { voiceName: voiceName }
+                            }
+                        }
+                    },
+                    model: "gemini-2.5-flash-preview-tts"
+                };
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                const part = result?.candidates?.[0]?.content?.parts?.[0];
+                const audioData = part?.inlineData?.data;
+                const mimeType = part?.inlineData?.mimeType;
+
+                if (audioData && mimeType && mimeType.startsWith("audio/")) {
+                    const sampleRate = parseInt(mimeType.match(/rate=(\d+)/)?.[1] || "24000", 10);
+                    const pcmData = base64ToArrayBuffer(audioData);
+                    const pcm16 = new Int16Array(pcmData);
+                    const wavBlob = pcmToWav(pcm16, sampleRate);
+                    const audioUrl = URL.createObjectURL(wavBlob);
+                    
+                    const audio = new Audio(audioUrl);
+                    audio.play();
+                    statusIndicator.innerText = "SPEAKING PROTOCOL ACTIVE";
+                    audio.onended = () => {
+                        statusIndicator.innerText = "COGNITIVE COUPLER: ONLINE";
+                    };
+                } else {
+                    throw new Error("No clean audio part fetched. Falling back to native SpeechSynthesis.");
+                }
+            } catch (err) {
+                console.warn("Gemini TTS pipeline issue. Falling back to native system speech.", err);
+                fallbackSpeechSynthesis(textToSpeak);
+            }
+        }
+
+        // Browser speech fallback
+        function fallbackSpeechSynthesis(textToSpeak) {
+            const synth = window.speechSynthesis;
+            if (!synth) return;
+            synth.cancel(); // Stop active speaking first
+            const utter = new SpeechSynthesisUtterance(textToSpeak);
+            const voices = synth.getVoices();
+            const perfectVoice = voices.find(v => v.name.includes("Google US English") || v.name.includes("Male") || v.name.includes("British"));
+            if (perfectVoice) utter.voice = perfectVoice;
+            utter.rate = 1.05;
+            utter.pitch = 0.95;
+            synth.speak(utter);
+        }
+
+        
+        // Intelligent Routine optimization & structured task processing using gemini-3-flash-preview
+        async function executeJarvisTask() {
+            const promptInput = document.getElementById("ai-user-prompt");
+            const query = promptInput.value.trim();
+            if (!query) return;
+
+            await aiCoreConsultation(query);
+            promptInput.value = ""; // Clear prompt
+        }
+
+        // Support enter key on prompt input
+        document.getElementById("ai-user-prompt")?.addEventListener("keypress", (e) => {
+            if (e.key === 'Enter') executeJarvisTask();
+        });
+
+        async function aiCoreConsultation(userQuery) {
+            const sendBtn = document.getElementById("ai-send-btn");
+            const statusIndicator = document.getElementById("jarvis-status");
+            
+            // Loading Animation
+            sendBtn.disabled = true;
+            sendBtn.innerText = "Wait...";
+            statusIndicator.innerText = "JARVIS COGNITIVE COUPLING ACTIVE...";
+            playSciFiSound('click');
+
+            try {
+                const apiKey = ""; // Left empty as required to auto-inject in runtime environment
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+                const systemInstruction = `
+                    You are J.A.R.V.I.S., Tony Stark's personal tactical intelligence assistant. 
+                    You help maintain and manage his weekly class routine (Saturday-Wednesday).
+                    Analyze user requests against his current weekly routine database.
+                    Identify if the user wants to add, delete, analyze, or optimize.
+                    
+                    Respond strictly in structured JSON format following the schema defined in your parameters.
+                    
+                    When scheduling new classes, do not introduce scheduling conflicts. Compare start and end times.
+                    Your conversational "message" response should sound sophisticated, witty, British, addressing Tony Stark as 'Sir' or 'Mr. Stark'.
+                `;
+
+                const payload = {
+                    contents: [
+                        {
+                            role: "user",
+                            parts: [
+                                { text: `Tony's current schedule: ${JSON.stringify(scheduleDatabase)}` },
+                                { text: `Tony's instruction: ${userQuery}` }
+                            ]
+                        }
+                    ],
+                    systemInstruction: {
+                        parts: [{ text: systemInstruction }]
+                    },
+                    generationConfig: {
+                        responseMimeType: "application/json",
+                        responseSchema: {
+                            type: "OBJECT",
+                            properties: {
+                                "action": { 
+                                    "type": "STRING", 
+                                    "description": "The specific operation classification: 'ADD', 'DELETE', 'ANALYZE', or 'NONE'" 
+                                },
+                                "day": { 
+                                    "type": "STRING", 
+                                    "description": "The target routine day if applicable (Saturday, Sunday, Monday, Tuesday, Wednesday)" 
+                                },
+                                "newClass": {
+                                    "type": "OBJECT",
+                                    "description": "Class parameter properties if adding a new class",
+                                    "properties": {
+                                        "name": { "type": "STRING", "description": "Course name/instructor" },
+                                        "start": { "type": "STRING", "description": "Start time in HH:MM format" },
+                                        "end": { "type": "STRING", "description": "End time in HH:MM format" },
+                                        "teacher": { "type": "STRING", "description": "Teacher initials/names" },
+                                        "room": { "type": "STRING", "description": "Target room or laboratory" }
+                                    }
+                                },
+                                "deleteId": { 
+                                    "type": "STRING", 
+                                    "description": "Target subject ID to purge if action is DELETE" 
+                                },
+                                "message": { 
+                                    "type": "STRING", 
+                                    "description": "JARVIS's direct spoken reply explaining the outcome or routine diagnostic analysis." 
+                                }
+                            },
+                            "required": ["action", "message"]
+                        }
+                    }
+                };
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+                const jsonText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+                
+                if (!jsonText) {
+                    throw new Error("Empty J.A.R.V.I.S response payload");
+                }
+
+                const parsedResponse = JSON.parse(jsonText);
+                console.log("JARVIS AI Action Plan:", parsedResponse);
+
+                // Handle AI Structured Action Directives
+                if (parsedResponse.action === "ADD" && parsedResponse.newClass && parsedResponse.day) {
+                    const freshClass = parsedResponse.newClass;
+                    const parsedStart = parseTimeTo24(freshClass.start);
+                    const parsedEnd = parseTimeTo24(freshClass.end);
+                    const targetDay = parsedResponse.day;
+
+                    if (!parsedStart || !parsedEnd) {
+                        showToast("JARVIS failed to calculate valid timeline boundaries.", true);
+                    } else {
+                        // Apply actions with stark override security passcode wrapper
+                        executeWithAuth(() => {
+                            const newPayload = {
+                                id: crypto.randomUUID(),
+                                name: freshClass.name,
+                                start: parsedStart,
+                                end: parsedEnd,
+                                teacher: freshClass.teacher || 'N/A',
+                                room: freshClass.room || 'N/A'
+                            };
+                            if (!scheduleDatabase[targetDay]) scheduleDatabase[targetDay] = [];
+                            scheduleDatabase[targetDay].push(newPayload);
+                            saveDatabase();
+                            selectedDay = targetDay;
+                            buildDaysSelector();
+                            renderScheduleList();
+                            logSystemAction(`J.A.R.V.I.S. AUTO INJECTED: "${freshClass.name.toUpperCase()}"`);
+                            showToast("Tactical Routine Updated.");
+                        });
+                    }
+                } 
+                else if (parsedResponse.action === "DELETE" && parsedResponse.deleteId) {
+                    executeWithAuth(() => {
+                        deleteClassPayload(parsedResponse.deleteId);
+                    });
+                }
+
+                // Log response and trigger verbal synthesis output
+                logSystemAction(`JARVIS: "${parsedResponse.message}"`);
+                playGeminiTTS(parsedResponse.message);
+
+            } catch (err) {
+                console.error("JARVIS logic error:", err);
+                const errFallback = "My apologies, Sir. It seems the main core is experiencing latency anomalies. I am unable to resolve that command currently.";
+                logSystemAction(errFallback);
+                playGeminiTTS(errFallback);
+            } finally {
+                sendBtn.disabled = false;
+                sendBtn.innerText = "Send";
+                statusIndicator.innerText = "COGNITIVE COUPLER: ONLINE";
+            }
+        }
+
+        function triggerVoiceSpeak() {
+            const totalToday = scheduleDatabase[selectedDay] ? scheduleDatabase[selectedDay].length : 0;
+            const textToGreet = `Good day, Sir. Saturday to Wednesday schedule matrix is fully operational. Today, being ${selectedDay}, you have exactly ${totalToday} active routine sectors loaded in the tactical grid.`;
+            logSystemAction("JARVIS: Initializing voice handshake sequence.");
+            playGeminiTTS(textToGreet);
+        }
+
+        function updateCompletionGauge() {
+            const items = scheduleDatabase[selectedDay] || [];
+            const circle = document.getElementById("gauge-circle");
+            const valText = document.getElementById("gauge-value");
+            const desc = document.getElementById("gauge-descriptor");
+
+            if (items.length === 0) {
+                circle.style.strokeDashoffset = "301.6"; 
+                valText.innerText = "0%";
+                desc.innerText = "No duties mapped for today.";
+                return;
+            }
+
+            const now = new Date();
+            const currTimeStr = now.toTimeString().split(' ')[0].substring(0, 5);
+            let finishedCount = 0;
+
+            items.forEach(item => {
+                if (currTimeStr > item.end) finishedCount++;
+            });
+
+            const percent = Math.round((finishedCount / items.length) * 100);
+            const circumference = 301.6;
+            const offset = circumference - (percent / 100) * circumference;
+            circle.style.strokeDashoffset = offset;
+            valText.innerText = `${percent}%`;
+
+            if (percent === 100) desc.innerText = "All classes/payload execution completed.";
+            else if (percent > 50) desc.innerText = "Chronological milestone achieved.";
+            else desc.innerText = "Awaiting day progression sectors.";
+        }
+    </script>
+</body>
+</html>
