@@ -1,4 +1,5 @@
-# stark-schedule-
+# stark-schedule
+live: https://golapsaroar.github.io/stark-schedule/
 It all started with a piece of paper. Or rather, a standard, lifeless black-and-white PDF of my university class routine. Every day involved staring at a static grid of times and room numbers. It was functional, sure, but it lacked soul. It lacked energy. It felt like I was accessing data on an MS-DOS terminal from the 80s when I wanted to feel like I was stepping into the future.
 
 
